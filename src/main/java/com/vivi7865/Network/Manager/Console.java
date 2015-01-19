@@ -5,13 +5,14 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jline.TerminalFactory;
-import jline.console.ConsoleReader;
-
 import org.fusesource.jansi.AnsiConsole;
 
+import com.vivi7865.Network.Manager.log.ChatColor;
 import com.vivi7865.Network.Manager.log.LoggingOutputStream;
 import com.vivi7865.Network.Manager.log.NMLogger;
+
+import jline.TerminalFactory;
+import jline.console.ConsoleReader;
 
 public class Console extends Thread {
 	
@@ -21,32 +22,34 @@ public class Console extends Thread {
 		this.manager = manager;
 	}
 	
-	public void run() {
+	public boolean defineLogger() {
 		try {
-			System.setProperty( "library.jansi.version", "NetManager" );
+			System.setProperty("library.jansi.version", "NetManager");
 			manager.setConsoleReader(new ConsoleReader());
 			AnsiConsole.systemInstall();
-            manager.getConsoleReader().setExpandEvents( false );
-            
-            manager.setLogger(new NMLogger(manager));
-            System.setErr(new PrintStream(new LoggingOutputStream(manager.getLogger(), Level.SEVERE), false ));
-            System.setOut(new PrintStream(new LoggingOutputStream(manager.getLogger(), Level.INFO), false ));
-            
-            manager.getConsoleReader().setPrompt(">");
+			manager.getConsoleReader().setExpandEvents( false );
+        
+			manager.setLogger(new NMLogger(manager));
+			System.setErr(new PrintStream(new LoggingOutputStream(manager.getLogger(), Level.SEVERE), true ));
+			System.setOut(new PrintStream(new LoggingOutputStream(manager.getLogger(), Level.INFO), true ));
+        
+			manager.getConsoleReader().setPrompt(">");
+			return true;
+		} catch (IOException e) {
+			System.err.println("Could not register logger: " + e.getMessage());
+			return false;
+		}
+	}
+	
+	public void run() {
+		try {
             
             String line = null;
             Logger log = manager.getLogger();
-            while ((line = manager.getConsoleReader().readLine()) != null) {
+            while (manager.isRunning() && (line = manager.getConsoleReader().readLine()) != null) {
             	String[] args = line.split(" ");
-            	if (manager.getCommandMap().containsKey(args[0].toLowerCase())) { //TODO temporary code! create a real command handler
-            		manager.onCommand(manager.getCommandMap().get(args[0].toLowerCase()), args);
-            		
-            		/*log.info("Stopping...");
-            		log.info("Goodbye!");
-            		for ( Handler handler : manager.getLogger().getHandlers() ) {handler.close();} //closing loggers handlers
-            		System.exit(0);*/
-            	} else {
-            		log.info("Unknown Command: " + line);
+            	if (!manager.dispatchCommand(args[0].toLowerCase(), args)) { //TODO temporary code! create a real command handler
+            		log.info(ChatColor.RED + "Unknown Command");
             	}
             }
         } catch(IOException e) {
